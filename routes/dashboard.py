@@ -3,7 +3,7 @@ from datetime import datetime
 import pandas as pd
 from pymongo import MongoClient
 import os
-
+from flask_cors import cross_origin
 
 # Use os.path to create a platform-independent path
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,6 +16,7 @@ collection = db['garbages']
 dashboard = Blueprint("dashboard", __name__)
 
 @dashboard.route("/", methods=["GET"])
+@cross_origin() # Allow CORS requests from any origin
 def index():
     blocs = {
         "bins": 81,
@@ -46,19 +47,21 @@ def get_top_locations(top_n=5):
             return {"message": "No data found for today."}
 
         df = pd.DataFrame(today_data)
+
         #sample
         df1 = pd.read_csv(BIN_DATA_FILE)
         today1 = '2021-01-01'
-        today_data1 = df[df['Timestamp'].str.startswith(today1)]
+        today_data1 = df1[df1['Timestamp'].str.startswith(today1)]
 
 
-        top_locations = df.groupby('Location').agg({
+        top_locations = today_data1.groupby('Location').agg({
             'Weight (kg)': 'sum',
             'Fill Level (%)': 'mean',
             'Latitude': 'first',
             'Longitude': 'first'
         }).nlargest(top_n, 'Weight (kg)').reset_index()
-
+        top_locations[['Weight (kg)', 'Fill Level (%)', 'Latitude', 'Longitude']] = \
+    top_locations[['Weight (kg)', 'Fill Level (%)', 'Latitude', 'Longitude']].round(2)
         return top_locations.to_dict(orient='records')
 
     except Exception as e:
